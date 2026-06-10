@@ -2,15 +2,19 @@
   "expo": {
     "name": "MindTrack",
     "slug": "mindtrack",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.yourname.mindtrack"
     },
     "android": {
       "package": "com.yourname.mindtrack"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7a3b9c9e-39e8-48d9-af5a-36a42905712a"
+      }
     }
   }
 }

@@ -1,51 +1,73 @@
-import React, { useState } from 'react';
-import { View, SafeAreaView, StatusBar, StyleSheet, AppRegistry } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StatusBar, StyleSheet, ActivityIndicator } from 'react-native';
 import { registerRootComponent } from 'expo';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { initializeAds } from './src/lib/ads';
 
 import { theme } from './src/theme';
-import BottomNav        from './src/components/BottomNav';
-import OnboardingScreen from './src/screens/OnboardingScreen';
-import HomeScreen       from './src/screens/HomeScreen';
-import CheckinScreen    from './src/screens/CheckinScreen';
-import ChatScreen       from './src/screens/ChatScreen';
-import JournalScreen    from './src/screens/JournalScreen';
+import { useAuth } from './src/hooks/useAuth';
+import { initPurchases } from './src/lib/purchases';
+
+import BottomNav from './src/components/BottomNav';
+import AuthScreen from './src/screens/AuthScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import ChatScreen from './src/screens/ChatScreen';
+import CheckinScreen from './src/screens/CheckinScreen';
+import JournalScreen from './src/screens/JournalScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 function App() {
-  const [screen, setScreen] = useState('Onboarding');
+  const { user, loading } = useAuth();
+  const [screen, setScreen] = useState('Home');
+
+  useEffect(() => {
+    initializeAds();
+    initPurchases();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={s.loading}>
+        <ActivityIndicator color={theme.accent} size="large" />
+      </View>
+    );
+  }
+
+  if (!user) return <AuthScreen />;
 
   const renderScreen = () => {
     switch (screen) {
-      case 'Onboarding': return <OnboardingScreen onStart={() => setScreen('Home')} />;
-      case 'Home':       return <HomeScreen onCheckin={() => setScreen('Checkin')} />;
-      case 'Checkin':    return <CheckinScreen onDone={() => setScreen('Home')} />;
-      case 'Chat':       return <ChatScreen />;
-      case 'Journal':    return <JournalScreen />;
-      default:           return <HomeScreen />;
+      case 'Chat': return <ChatScreen user={user} />;
+      case 'Checkin': return <CheckinScreen user={user} onDone={() => setScreen('Home')} />;
+      case 'Journal': return <JournalScreen user={user} />;
+      case 'Profile': return <ProfileScreen user={user} />;
+      default: return <HomeScreen user={user} onCheckin={() => setScreen('Checkin')} />;
     }
   };
 
-  const showNav = screen !== 'Onboarding';
-
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
-      <View style={styles.container}>
-        <View style={{ flex: 1 }}>
+    <SafeAreaProvider>
+      <SafeAreaView style={s.safe}>
+        <StatusBar barStyle="dark-content" backgroundColor={theme.bg} />
+        <View style={s.appWrap}>
           {renderScreen()}
-        </View>
-        {showNav && (
           <BottomNav active={screen} onNavigate={setScreen} />
-        )}
-      </View>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.bg },
-  container: { flex: 1 },
+  appWrap: { flex: 1, backgroundColor: theme.bg },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.bg,
+  },
 });
 
 registerRootComponent(App);
-
 export default App;

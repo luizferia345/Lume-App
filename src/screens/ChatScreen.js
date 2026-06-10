@@ -1,222 +1,227 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, StyleSheet, Alert
 } from 'react-native';
+
 import { theme } from '../theme';
+import { usePremium } from '../hooks/usePremium';
+import { canSendMessage, FREE_LIMIT } from '../utils/limits';
+import { updateUserMetadata } from '../lib/supabase';
+import { sendToAI } from '../lib/ai';
 
-const SYSTEM_PROMPT = `Você é um assistente de apoio emocional empático e acolhedor do app MindTrack.
-Use técnicas de Terapia Cognitivo-Comportamental (TCC) de forma natural e acessível.
-REGRAS IMPORTANTES:
-- NUNCA faça diagnósticos clínicos
-- NUNCA prescreva medicamentos
-- Sempre sugira buscar um profissional em situações de crise
-- Se o usuário demonstrar risco de se machucar, forneça imediatamente o CVV: 188
-- Responda sempre em português brasileiro
-- Seja caloroso, direto e prático
-- Mantenha respostas concisas (máximo 3 parágrafos)`;
+const SUGGESTIONS = [
+  'Ansioso',
+  'Não consegui dormir',
+  'Sobrecarregado',
+  'Quero me acalmar'
+];
 
-const SUGGESTIONS = ['Estou ansioso', 'Preciso relaxar', 'Técnicas de respiração'];
-
-export default function ChatScreen() {
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: 'Olá! 💙 Estou aqui para te ouvir. Como você está se sentindo agora?',
-    },
-  ]);
+export default function ChatScreen({ user }) {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef(null);
 
-  const sendMessage = async (text) => {
-    const userText = text || input.trim();
-    if (!userText || loading) return;
+  const { isPremium, tokens } = usePremium(user);
 
-    const newMessages = [...messages, { role: 'user', content: userText }];
-    setMessages(newMessages);
-    setInput('');
-    setLoading(true);
+  useEffect(() => {
+    setMessages([
+      {
+        role: 'assistant',
+        content: 'Oi, eu estou aqui com você 💙\n\nPode me contar com calma como você está se sentindo hoje.'
+      }
+    ]);
+  }, []);
 
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: newMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      });
+ const send = async (text) => {
+  const msg = text || input;
+  if (!msg) return;
 
-      const data = await response.json();
-      const reply = data.content?.[0]?.text || 'Desculpe, não consegui responder. Tente novamente.';
+  if (!canSendMessage(count, isPremium, tokens)) {
+    Alert.alert(
+      'Limite atingido',
+      'Seu limite gratuito acabou. Compre tokens ou ative o plano premium para continuar.'
+    );
+    setLoading(false);
+    return;
+  }
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Erro de conexão. Verifique sua internet e tente novamente.' },
-      ]);
-    } finally {
+  const useToken = !isPremium && count >= FREE_LIMIT;
+  if (useToken && tokens <= 0) {
+    Alert.alert('Sem tokens', 'Você precisa comprar tokens para continuar usando a IA.');
+    setLoading(false);
+    return;
+  }
+
+  if (useToken) {
+    const nextTokens = tokens - 1;
+    const { error } = await updateUserMetadata({ tokens: nextTokens });
+    if (error) {
+      Alert.alert('Erro', 'Não foi possível usar o token. Tente novamente.');
       setLoading(false);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      return;
     }
-  };
+  }
+
+  const newMessages = [...messages, { role: 'user', content: msg }];
+  setMessages(newMessages);
+  setInput('');
+  setCount(count + 1);
+  setLoading(true);
+
+  try {
+    const reply = await sendToAI(newMessages);
+
+    setMessages((prev) => [
+      ...prev,
+      { role: 'assistant', content: reply }
+    ]);
+
+  } catch (e) {
+    setMessages((prev) => [
+      ...prev,
+      { role: 'assistant', content: 'Tive um problema agora, mas continuo aqui com você 💙' }
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
-    >
-      <View style={s.screen}>
-        {/* Header */}
-        <View style={s.header}>
-          <View style={s.avatarBox}><Text style={{ fontSize: 18 }}>🤖</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerTitle}>Assistente MindTrack</Text>
-            <Text style={s.headerSub}>● Online · baseado em TCC</Text>
+    <View style={s.container}>
+      <View style={s.chatHeader}>
+        <Text style={s.chatTitle}>Converse com Lume</Text>
+        <Text style={s.chatSubtitle}>Desabafe sempre que precisar e receba orientações práticas.</Text>
+      </View>
+      <View style={s.statusBar}>
+        <Text style={s.statusText}>
+          {isPremium
+            ? 'Premium ativado — IA ilimitada'
+            : `Tokens: ${tokens} · Gratuito restantes: ${Math.max(0, FREE_LIMIT - count)}`}
+        </Text>
+      </View>
+      <ScrollView style={{ flex: 1, padding: 16 }}>
+        {messages.map((m, i) => (
+          <View key={i} style={m.role === 'user' ? s.user : s.ai}>
+            <Text style={s.text}>{m.content}</Text>
           </View>
-          <View style={s.badge}><Text style={s.badgeText}>IA ativa</Text></View>
-        </View>
+        ))}
+        {loading && <Text style={{ color: '#999', fontSize: 13 }}>digitando...</Text>}
+      </ScrollView>
 
-        {/* Messages */}
-        <ScrollView
-          ref={scrollRef}
-          style={s.messages}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-        >
-          {messages.map((msg, i) => (
-            <View
-              key={i}
-              style={[
-                s.bubble,
-                msg.role === 'assistant' ? s.bubbleAI : s.bubbleUser,
-              ]}
-            >
-              <Text style={[
-                s.bubbleText,
-                msg.role === 'assistant' ? s.bubbleTextAI : s.bubbleTextUser,
-              ]}>
-                {msg.content}
-              </Text>
-            </View>
-          ))}
-          {loading && (
-            <View style={[s.bubble, s.bubbleAI, { paddingVertical: 14 }]}>
-              <ActivityIndicator size="small" color={theme.accent} />
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Suggestions */}
-        <View style={s.suggestions}>
+      <View style={{ marginBottom: 2, marginTop: 2 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.suggestionsScroll}>
           {SUGGESTIONS.map((sug) => (
-            <TouchableOpacity
-              key={sug}
-              style={s.suggestion}
-              onPress={() => sendMessage(sug)}
-              activeOpacity={0.7}
-            >
-              <Text style={s.suggestionText}>{sug}</Text>
+            <TouchableOpacity key={sug} onPress={() => send(sug)} style={s.sug}>
+              <Text style={s.sugText}>{sug}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-
-        {/* Input */}
-        <View style={s.inputRow}>
-          <TextInput
-            style={s.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Escreva aqui..."
-            placeholderTextColor={theme.textMuted}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[s.sendBtn, (!input.trim() || loading) && { opacity: 0.4 }]}
-            onPress={() => sendMessage()}
-            disabled={!input.trim() || loading}
-            activeOpacity={0.8}
-          >
-            <Text style={s.sendBtnText}>→</Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
-    </KeyboardAvoidingView>
+
+      <View style={s.inputRow}>
+        <TextInput
+          value={input}
+          onChangeText={setInput}
+          placeholder="Como você está?"
+          style={s.input}
+          placeholderTextColor={theme.textMuted}
+        />
+        <TouchableOpacity onPress={() => send()} style={s.btn}>
+          <Text style={{ color: '#fff' }}>→</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={s.disclaimer}>
+        Este app oferece apoio emocional e não substitui profissionais. Em crise, ligue 188 (CVV).
+      </Text>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: theme.border,
-    backgroundColor: theme.bg,
+  container: { flex: 1, backgroundColor: theme.bg },
+  chatHeader: {
+    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 12,
   },
-  avatarBox: {
-    width: 36, height: 36, borderRadius: 10,
+  chatTitle: { fontSize: 24, fontWeight: '900', color: theme.textPrimary, marginBottom: 6 },
+  chatSubtitle: { fontSize: 13, color: theme.textSecondary, lineHeight: 20 },
+  user: {
+    alignSelf: 'flex-end',
     backgroundColor: theme.accentSoft,
-    borderWidth: 1, borderColor: theme.accent + '33',
-    alignItems: 'center', justifyContent: 'center',
+    padding: 14,
+    borderRadius: 22,
+    marginBottom: 10,
+    maxWidth: '78%',
   },
-  headerTitle: { fontSize: 14, fontWeight: '700', color: theme.textPrimary },
-  headerSub:   { fontSize: 11, color: theme.green, fontWeight: '500' },
-  badge: {
-    backgroundColor: theme.purpleSoft, borderWidth: 1,
-    borderColor: theme.purple + '33', borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 4,
+  ai: {
+    alignSelf: 'flex-start',
+    backgroundColor: theme.bgCard,
+    padding: 14,
+    borderRadius: 22,
+    marginBottom: 10,
+    maxWidth: '78%',
+    borderWidth: 1,
+    borderColor: theme.border,
   },
-  badgeText: { fontSize: 11, color: theme.purple, fontWeight: '600' },
-  messages: { flex: 1 },
-  bubble: {
-    maxWidth: '78%', padding: 12, borderRadius: 16,
+  text: { color: theme.textPrimary, lineHeight: 20 },
+  sug: {
+    backgroundColor: theme.bgCard,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    marginRight: 7,
+    borderWidth: 1,
+    borderColor: theme.border,
+    minHeight: 34,
+    minWidth: 0,
   },
-  bubbleAI: {
-    backgroundColor: theme.surface, borderWidth: 1,
-    borderColor: theme.border, borderTopLeftRadius: 4, alignSelf: 'flex-start',
-  },
-  bubbleUser: {
-    backgroundColor: theme.accentSoft, borderWidth: 1,
-    borderColor: theme.accent + '44', borderTopRightRadius: 4, alignSelf: 'flex-end',
-  },
-  bubbleText:     { fontSize: 13, lineHeight: 20 },
-  bubbleTextAI:   { color: theme.textPrimary },
-  bubbleTextUser: { color: theme.accent },
-  suggestions: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
-    paddingHorizontal: 16, paddingBottom: 8,
-  },
-  suggestion: {
-    backgroundColor: theme.surface, borderWidth: 1,
-    borderColor: theme.border, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5,
-  },
-  suggestionText: { fontSize: 11, color: theme.textSecondary },
   inputRow: {
-    flexDirection: 'row', gap: 8, alignItems: 'flex-end',
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: theme.surface, borderTopWidth: 1, borderTopColor: theme.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: theme.bgCard,
+    borderTopWidth: 1,
+    borderColor: theme.border,
+    marginBottom: 2,
   },
   input: {
-    flex: 1, backgroundColor: theme.bg, borderRadius: 12,
-    borderWidth: 1, borderColor: theme.border,
-    paddingHorizontal: 14, paddingVertical: 10,
-    color: theme.textPrimary, fontSize: 14, maxHeight: 100,
+    flex: 1,
+    backgroundColor: theme.bg,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: theme.textPrimary,
+    fontSize: 14,
   },
-  sendBtn: {
-    width: 40, height: 40, borderRadius: 12,
+  btn: {
     backgroundColor: theme.accent,
-    alignItems: 'center', justifyContent: 'center',
+    padding: 14,
+    borderRadius: 18,
+    marginLeft: 10,
+    shadowColor: theme.accent,
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
-  sendBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  statusBar: {
+    backgroundColor: theme.bgCard,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderColor: theme.border,
+  },
+  statusText: {
+    color: theme.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  disclaimer: {
+    textAlign: 'center',
+    fontSize: 10,
+    color: theme.textMuted,
+    paddingBottom: 6,
+  },
 });

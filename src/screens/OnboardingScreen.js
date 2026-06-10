@@ -22,7 +22,7 @@ export default function OnboardingScreen({ onStart }) {
 
       <Text style={styles.title}>Seu companheiro de saúde mental</Text>
       <Text style={styles.subtitle}>
-        Acompanhe seu humor, identifique padrões e receba suporte personalizado com IA.
+        Acompanhe seu humor, entenda seus sentimentos e converse com uma IA empática.
       </Text>
 
       <View style={styles.featureList}>
