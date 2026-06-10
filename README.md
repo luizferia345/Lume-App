@@ -1,7 +1,7 @@
-# MindTrack — by Luiz Dias
+# LumeApp — by Luiz Dias
 © 2026 Luiz Dias. Todos os direitos reservados.
 
-# 🧠 MindTrack — App de Saúde Mental com IA
+# 🧠 LumeApp — App de Saúde Mental com IA
 
 Aplicativo React Native (Expo) para acompanhamento de ansiedade e depressão com IA integrada via API da Anthropic.
 
