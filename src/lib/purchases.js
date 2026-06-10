@@ -5,7 +5,11 @@ try {
   Purchases = null;
 }
 
-const REVENUECAT_API_KEY = 'appl_WrMqUhMbJGHGHmRpPnWVpLGJnFe'; // Chave RevenueCat pública
+import { REVENUECAT_API_KEY } from '../config/env';
+
+if (typeof REVENUECAT_API_KEY === 'undefined') {
+  console.warn('[Purchases] Variável REVENUECAT_API_KEY não configurada em src/config/env.js');
+}
 
 export const isPurchasesAvailable = () => !!Purchases;
 

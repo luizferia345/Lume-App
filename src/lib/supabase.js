@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/env';
 
-const SUPABASE_URL = 'https://ulpoqgvelvozvlynjqnx.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_GqPz-nVfSqaI9grA5v4dFw__K9jHr4f';
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('[Supabase] Variáveis de ambiente não configuradas em src/config/env.js');
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
