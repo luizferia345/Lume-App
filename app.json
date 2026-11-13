@@ -1,15 +1,30 @@
 {
   "expo": {
-    "name": "MindTrack",
+    "name": "Lume",
     "slug": "mindtrack",
     "version": "2.0.0",
     "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121339"
+    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourname.mindtrack"
+      "bundleIdentifier": "com.lumeapp.mentalhealth",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "com.yourname.mindtrack"
+      "package": "com.lumeapp.mentalhealth",
+      "allowBackup": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#121339"
+      }
     },
     "extra": {
       "eas": {

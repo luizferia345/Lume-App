@@ -1,62 +1,77 @@
-# LumeApp — by Luiz Dias
+# 🧠 Lume — App de Bem-Estar e Saúde Mental com IA
 © 2026 Luiz Dias. Todos os direitos reservados.
 
-# 🧠 LumeApp — App de Saúde Mental com IA
-
-Aplicativo React Native (Expo) para acompanhamento de ansiedade e depressão com IA integrada via API da Anthropic.
+Aplicativo mobile em **React Native (Expo SDK 54)** para Android e iOS, focado em acolhimento emocional, check-in diário de humor/ansiedade/sono, diário emocional, exercícios de respiração guiada (4-4-4-4) e conversa empática com IA (Anthropic Claude + Supabase).
 
 ---
 
-## 📁 Estrutura do projeto
+## 📁 Estrutura do Projeto
 
-```
-mindtrack/
-├── App.js                        ← Navegação principal
-├── app.json                      ← Configuração Expo
+```text
+Lume-App/
+├── App.js                              ← Navegação principal, Onboarding e controle de sessão
+├── app.json                            ← Configuração Expo (Lume, ícones, splash, permissões)
+├── eas.json                            ← Perfis de compilação EAS Build (APK e AAB Play Store)
 ├── package.json
+├── supabase/
+│   ├── schema.sql                      ← Tabelas, RLS e RPC de exclusão de conta (LGPD)
+│   └── functions/lume-chat/index.ts    ← Edge Function segura para a API da Anthropic
 └── src/
+    ├── config/
+    │   ├── env.js                      ← Variáveis de ambiente (Supabase, RevenueCat)
+    │   └── env.example.js
     ├── theme/
-    │   └── index.js              ← Cores e tokens de design
+    │   └── index.js                    ← Paleta de cores e espaçamentos
     ├── components/
-    │   └── BottomNav.js          ← Barra de navegação inferior
+    │   ├── BottomNav.js                ← Barra de navegação inferior acessível
+    │   ├── CrisisModal.js              ← Apoio em crise (CVV 188 / SAMU 192) e Respiração 4-4-4-4
+    │   └── LegalModal.js               ← Política de Privacidade, Termos (EULA) e Aviso Médico
+    ├── hooks/
+    │   ├── useAuth.js                  ← Estado de autenticação persistente
+    │   └── usePremium.js               ← Status Premium e saldo de tokens
+    ├── lib/
+    │   ├── supabase.js                 ← Cliente Supabase, Auth, Check-ins, Diário, Chat e LGPD
+    │   ├── ai.js                       ← Integração Claude Sonnet 4 + detecção preventiva de crise
+    │   ├── purchases.js                ← Integração RevenueCat (Tokens e Assinatura Premium)
+    │   └── ads.js                      ← Integração Google Mobile Ads (Rewarded Ads)
     └── screens/
-        ├── OnboardingScreen.js   ← Tela de boas-vindas
-        ├── HomeScreen.js         ← Dashboard principal
-        ├── CheckinScreen.js      ← Check-in diário de humor
-        ├── ChatScreen.js         ← Chat com IA (Claude API) ✨
-        └── JournalScreen.js      ← Diário emocional
+        ├── OnboardingScreen.js         ← Boas-vindas e consentimento LGPD
+        ├── AuthScreen.js               ← Login, Cadastro e Recuperação de Senha (E-mail/Senha)
+        ├── HomeScreen.js               ← Dashboard, ofensiva (streak), gráfico 7 dias e anúncios
+        ├── CheckinScreen.js            ← Check-in diário em 2 etapas
+        ├── ChatScreen.js               ← Chat com Lume IA com histórico persistente
+        ├── JournalScreen.js            ← Diário emocional com filtros, leitura completa e exclusão
+        └── ProfileScreen.js            ← Planos, exportação de dados (LGPD) e exclusão de conta
 ```
 
 ---
 
-## 🚀 Como rodar
+## 🚀 Como Rodar e Compilar o APK para Android
 
-### 1. Instale as dependências
+### Pré-requisito no Windows
+Certifique-se de ter o **Node.js LTS** instalado (via [nodejs.org](https://nodejs.org/) ou `winget install OpenJS.NodeJS.LTS`).
+
+### 1. Configurar variáveis de ambiente
+Edite [`src/config/env.js`](./src/config/env.js) (ou crie um arquivo `.env` na raiz) com suas chaves do **Supabase** e **RevenueCat**:
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_anon_key
+EXPO_PUBLIC_REVENUECAT_API_KEY=public_sdk_key
+```
+
+### 2. Subir o app em modo de desenvolvimento
 ```bash
-cd mindtrack
-npm install
-``
+npm start
+```
 
-### 2. Rode o app
+### 3. Gerar o APK instalável para Android (na nuvem do Expo EAS — sem precisar do Android Studio)
 ```bash
-npx expo start
-
+npx eas-cli login
+npm run build:apk
+```
+Ao finalizar, o EAS exibirá um **link e QR Code** para baixar e instalar o `.apk` diretamente no seu celular Android.
 
 ---
 
-## 📱 Telas implementadas
-
-| Tela | Descrição |
-|------|-----------|
-| Onboarding | Apresentação do app com features |
-| Home | Dashboard com streak, stats, gráfico de humor e insight da IA |
-| Check-in | Seletor de humor + sliders de ansiedade e sono |
-| Chat IA | Conversa em tempo real com Claude (TCC) |
-| Diário | Entradas emocionais com tags e filtro de humor |
-
----
-
-## ⚠️ Aviso importante
-
-Este app é um suporte complementar à saúde mental, **não substitui** atendimento profissional.
-Em caso de crise, ligue para o **CVV: 188** (24h, gratuito).
+## ⚠️ Aviso Importante
+O **Lume** é um suporte complementar ao autocuidado e **não substitui** atendimento psicológico ou psiquiátrico. Em caso de crise, ligue gratuitamente para o **CVV: 188** (24h).

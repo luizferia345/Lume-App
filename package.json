@@ -1,11 +1,13 @@
 {
-  "name": "mindtrack",
+  "name": "lume",
   "version": "2.0.0",
   "main": "App.js",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "build:apk": "npx eas-cli build --platform android --profile preview",
+    "build:store": "npx eas-cli build --platform android --profile production"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.2",
